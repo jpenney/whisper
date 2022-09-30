@@ -248,6 +248,10 @@ def transcribe(
 
 def cli():
     from . import available_models
+    try:
+        import wakepy
+    except ImportError:
+        wakepy = None
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("audio", nargs="+", type=str, help="audio file(s) to transcribe")
@@ -276,6 +280,8 @@ def cli():
     parser.add_argument("--logprob_threshold", type=optional_float, default=-1.0, help="if the average log probability is lower than this value, treat the decoding as failed")
     parser.add_argument("--no_speech_threshold", type=optional_float, default=0.6, help="if the probability of the <|nospeech|> token is higher than this value AND the decoding has failed due to `logprob_threshold`, consider the segment as silence")
     parser.add_argument("--threads", type=optional_int, default=0, help="number of threads used by torch for CPU inference; supercedes MKL_NUM_THREADS/OMP_NUM_THREADS")
+    if wakepy:
+        parser.add_argument("--keep_awake", default=False, action='store_true', help="Keep system from idle sleeping while running")
 
     args = parser.parse_args().__dict__
     model_name: str = args.pop("model")
@@ -283,6 +289,11 @@ def cli():
     output_dir: str = args.pop("output_dir")
     device: str = args.pop("device")
     os.makedirs(output_dir, exist_ok=True)
+
+    if wakepy:
+        keep_awake = args.pop("keep_awake")
+        if keep_awake:
+            wakepy.set_keepawake(keep_screen_awake=False)
 
     if model_name.endswith(".en") and args["language"] not in {"en", "English"}:
         if args["language"] is not None:
